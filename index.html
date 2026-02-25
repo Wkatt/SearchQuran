@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مستكشف جذور القرآن</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Amiri:ital,wght@0,400;0,700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Amiri', 'Traditional Arabic', serif; background: #f5f0e8; color: #2c1a0e; min-height: 100vh; direction: rtl; }
+  .header { background: linear-gradient(135deg, #6b3a1f, #3d1f0a); border-bottom: 3px solid #c9a84c; padding: 20px 30px; text-align: center; }
+  .header h1 { font-size: 2rem; color: #f5e6c8; }
+  .header p { color: #d4b896; font-size: 0.9rem; margin-top: 6px; }
+  .upload-section { background: #fff8f0; border: 2px dashed #c9a84c88; border-radius: 12px; margin: 30px auto; max-width: 700px; padding: 30px; text-align: center; box-shadow: 0 2px 12px #c9a84c22; }
+  .upload-section label { cursor: pointer; display: inline-block; background: linear-gradient(135deg, #c9a84c, #a07830); color: #fff; font-weight: bold; padding: 12px 30px; border-radius: 8px; font-size: 1rem; transition: opacity .2s; }
+  .upload-section label:hover { opacity: .85; }
+  #fileInput { display: none; }
+  .btn-clear { background: transparent; border: 1px solid #c55; color: #c55; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 0.9rem; margin-top: 12px; transition: all .2s; }
+  .btn-clear:hover { background: #c55; color: #fff; }
+  .search-container { max-width: 800px; margin: 0 auto 16px; padding: 0 20px; display: none; }
+  .search-tabs { display: flex; border-radius: 10px 10px 0 0; overflow: hidden; border: 1px solid #c9a84c66; border-bottom: none; }
+  .tab-btn { flex: 1; padding: 10px; background: #ede3d4; border: none; color: #7a5c3a; font-family: inherit; font-size: 1rem; cursor: pointer; transition: all .2s; }
+  .tab-btn.active { background: #fff8f0; color: #8b4513; font-weight: bold; }
+  .search-bar { display: flex; gap: 10px; align-items: center; background: #fff8f0; border: 1px solid #c9a84c88; border-radius: 0 0 10px 10px; padding: 10px 16px; }
+  .search-bar input { flex: 1; background: transparent; border: none; outline: none; color: #2c1a0e; font-size: 1.3rem; font-family: inherit; direction: rtl; }
+  .search-bar input::placeholder { color: #b09070; }
+  .stats-bar { max-width: 800px; margin: 0 auto 16px; padding: 0 20px; color: #8a6a4a; font-size: 0.85rem; display: none; }
+  .chips-area { max-width: 800px; margin: 0 auto 20px; padding: 0 20px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { background: #fff8f0; border: 1px solid #c9a84c66; border-radius: 20px; padding: 6px 16px; cursor: pointer; font-size: 1rem; color: #8b4513; transition: all .2s; }
+  .chip:hover, .chip.active { background: #c9a84c; color: #fff; border-color: #c9a84c; }
+  .chip.word-chip { color: #1a6b4a; border-color: #2a9a6a44; }
+  .chip.word-chip:hover, .chip.word-chip.active { background: #2a7a55; color: #fff; border-color: #2a7a55; }
+  .results-area { max-width: 900px; margin: 0 auto; padding: 0 20px 40px; }
+  .root-header { background: linear-gradient(135deg, #fff8f0, #fdf0dc); border: 1px solid #c9a84c; border-radius: 12px; padding: 16px 24px; margin-bottom: 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; box-shadow: 0 2px 10px #c9a84c22; }
+  .root-title { font-size: 2.2rem; color: #8b4513; }
+  .root-meta { color: #7a5c3a; font-size: 0.9rem; line-height: 1.7; }
+  .entry-card { background: #fff; border: 1px solid #e0d0b8; border-radius: 12px; margin-bottom: 20px; overflow: hidden; box-shadow: 0 2px 8px #c9a84c11; transition: box-shadow .2s; }
+  .entry-card:hover { box-shadow: 0 4px 16px #c9a84c22; }
+  .entry-header { background: #fdf5e6; padding: 12px 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid #e8d8b8; }
+  .entry-word { font-size: 1.6rem; color: #8b4513; font-weight: bold; }
+  .badge { background: #fff8f0; border: 1px solid #c9a84c55; border-radius: 6px; padding: 3px 10px; font-size: 0.8rem; color: #7a5c3a; }
+  .badge.green { border-color: #2a9a6a44; color: #1a6b4a; }
+  .ayah-section { padding: 16px 20px; background: #fff; }
+  .context-label { font-size: 0.8rem; color: #9a7a5a; margin-bottom: 8px; }
+  .ayah-text { font-family: 'Amiri Quran', 'Amiri', serif; font-size: 1.35rem; line-height: 2.3; color: #1a1a1a; margin-bottom: 12px; background: #fffdf8; border-radius: 8px; padding: 16px 20px; border-right: 4px solid #c9a84c; }
+  .context-toggle { font-size: 0.95rem; color: #8b4513; margin-bottom: 6px; padding: 7px 14px; background: #fdf5e6; border: 1px solid #d4b89688; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; user-select: none; }
+  .context-toggle:hover { background: #f5e6cc; }
+  .context-body { font-family: 'Amiri Quran', 'Amiri', serif; font-size: 1.05rem; line-height: 2.1; color: #4a3a2a; background: #f8f3ea; border-radius: 8px; padding: 12px 16px; margin-bottom: 10px; border-right: 3px solid #d4b896; display: none; margin-top: 4px; }
+  .no-results { text-align: center; padding: 60px 20px; color: #9a7a5a; font-size: 1.1rem; }
+  .loading-overlay { position: fixed; inset: 0; background: #f5f0e8ee; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 999; }
+  .loading-spinner { width: 60px; height: 60px; border: 4px solid #e0d0b8; border-top-color: #c9a84c; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { color: #8b4513; font-size: 1.2rem; }
+  .loading-sub { color: #9a7a5a; font-size: 0.9rem; margin-top: 8px; }
+  .saved-badge { display: inline-block; background: #f0faf5; border: 1px solid #2a9a6a55; color: #1a6b4a; border-radius: 6px; padding: 4px 12px; font-size: 0.85rem; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>&#x1F54C; مستكشف جذور القرآن الكريم</h1>
+  <p>ابحث بالجذر أو بالكلمة واستعرض الآيات الكريمة</p>
+</div>
+
+<div class="upload-section" id="uploadSection">
+  <p style="font-size:1.1rem;margin-bottom:16px;color:#8b4513;">ارفع ملف البيانات (Excel أو CSV)</p>
+  <label for="fileInput">&#128194; اختر الملف</label>
+  <input type="file" id="fileInput" accept=".csv,.tsv,.txt,.xlsx,.xls">
+  <p style="margin-top:12px;color:#9a7a5a;font-size:0.85rem;">يدعم ملفات Excel (.xlsx) وCSV</p>
+  <div id="uploadStatus" style="margin-top:14px;color:#7a5c3a;font-size:0.95rem;"></div>
+  <div id="savedBadge" style="display:none" class="saved-badge">&#x2705; البيانات محفوظة</div>
+  <br>
+  <button class="btn-clear" id="btnClear" onclick="clearSaved()" style="display:none">&#x1F5D1; حذف البيانات المحفوظة</button>
+</div>
+
+<div class="search-container" id="searchContainer">
+  <div class="search-tabs">
+    <button class="tab-btn active" id="tabRoot" onclick="switchTab('root')">بحث بالجذر</button>
+    <button class="tab-btn" id="tabWord" onclick="switchTab('word')">بحث بالكلمة</button>
+  </div>
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="ابحث عن جذر... (مثال: ءبد، كتب، علم)"
+      oninput="debounceSearch()"
+      onkeydown="if(event.key==='Enter'){clearTimeout(searchTimer);handleSearch();}">
+  </div>
+</div>
+
+<div class="stats-bar" id="statsBar"></div>
+<div class="chips-area" id="chipsArea"></div>
+<div class="results-area" id="resultsArea"></div>
+
+<div class="loading-overlay" id="loadingOverlay" style="display:none">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loadingText">جاري تحميل البيانات...</div>
+  <div class="loading-sub" id="loadingSub"></div>
+</div>
+
+<script>
+var allData = [], rootsMap = {}, wordsMap = {};
+var currentTab = 'root', searchTimer = null, ctxId = 0;
+var DB_NAME = 'QuranExplorer', DB_VERSION = 1, STORE = 'data';
+
+function openDB() {
+  return new Promise(function(res, rej) {
+    var req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = function(e) { e.target.result.createObjectStore(STORE); };
+    req.onsuccess = function(e) { res(e.target.result); };
+    req.onerror = function(e) { rej(e.target.error); };
+  });
+}
+function dbGet(key) {
+  return openDB().then(function(db) {
+    return new Promise(function(res, rej) {
+      var tx = db.transaction(STORE, 'readonly');
+      var req = tx.objectStore(STORE).get(key);
+      req.onsuccess = function() { res(req.result); };
+      req.onerror = function(e) { rej(e.target.error); };
+    });
+  });
+}
+function dbSet(key, val) {
+  return openDB().then(function(db) {
+    return new Promise(function(res, rej) {
+      var tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).put(val, key);
+      tx.oncomplete = function() { res(); };
+      tx.onerror = function(e) { rej(e.target.error); };
+    });
+  });
+}
+function dbDel(key) {
+  return openDB().then(function(db) {
+    return new Promise(function(res, rej) {
+      var tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).delete(key);
+      tx.oncomplete = function() { res(); };
+      tx.onerror = function(e) { rej(e.target.error); };
+    });
+  });
+}
+
+window.addEventListener('load', function() {
+  showLoading('جاري البحث عن بيانات محفوظة...');
+  dbGet('allData').then(function(saved) {
+    if (saved && saved.length) {
+      allData = saved;
+      buildMaps();
+      showUI();
+      setStatus('تم تحميل البيانات المحفوظة (' + allData.length + ' سجل)');
+      document.getElementById('savedBadge').style.display = 'inline-block';
+      document.getElementById('btnClear').style.display = 'inline-block';
+    } else {
+      setStatus('ارفع الملف لأول مرة وسيحفظ تلقائياً');
+    }
+    hideLoading();
+  }).catch(function() {
+    setStatus('ارفع ملف البيانات');
+    hideLoading();
+  });
+});
+
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  showLoading('جاري قراءة الملف...', 'قد يستغرق دقيقة للملفات الكبيرة');
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      var rows = file.name.match(/\.xlsx?$/i) ? parseExcel(ev.target.result) : parseCSVText(ev.target.result);
+      processRows(rows);
+      showLoading('جاري حفظ البيانات...', 'مرة واحدة فقط');
+      dbSet('allData', allData).then(function() {
+        document.getElementById('savedBadge').style.display = 'inline-block';
+        document.getElementById('btnClear').style.display = 'inline-block';
+        setStatus('تم تحميل وحفظ ' + allData.length + ' سجل');
+        hideLoading();
+      });
+    } catch(err) {
+      setStatus('خطأ: ' + err.message);
+      hideLoading();
+    }
+  };
+  if (file.name.match(/\.xlsx?$/i)) reader.readAsArrayBuffer(file);
+  else reader.readAsText(file, 'UTF-8');
+});
+
+function parseExcel(buffer) {
+  var wb = XLSX.read(buffer, { type: 'array' });
+  var ws = wb.Sheets[wb.SheetNames[0]];
+  return XLSX.utils.sheet_to_json(ws, { defval: '' });
+}
+
+function parseCSVText(text) {
+  var lines = text.split('\n').filter(function(l) { return l.trim(); });
+  var delim = lines[0].indexOf('\t') >= 0 ? '\t' : ',';
+  var headers = lines[0].split(delim).map(function(h) { return h.trim().replace(/^"|"$/g,''); });
+  var rows = [];
+  for (var i = 1; i < lines.length; i++) {
+    var cols = splitCSV(lines[i], delim);
+    var obj = {};
+    headers.forEach(function(h, j) { obj[h] = (cols[j]||'').trim().replace(/^"|"$/g,''); });
+    rows.push(obj);
+  }
+  return rows;
+}
+
+function processRows(rows) {
+  if (!rows.length) { setStatus('الملف فارغ'); return; }
+  var keys = Object.keys(rows[0]);
+  function find() {
+    var cands = Array.prototype.slice.call(arguments);
+    for (var i = 0; i < cands.length; i++) {
+      var c = cands[i].toLowerCase().replace(/[\s_]/g,'');
+      var k = keys.find(function(k) { return k.toLowerCase().replace(/[\s_]/g,'').indexOf(c) >= 0; });
+      if (k) return k;
+    }
+    return null;
+  }
+  var kRoot     = find('root');
+  var kWord     = find('word_uthmani_tashkeel','word_uthmani','word');
+  var kWordUth  = find('word_uthmani','worduthmani');
+  var kWordNorm = find('word_normal','wordnormal');
+  var kAyah     = find('ayah_text_tashkeel','ayah_text','text');
+  var kSuraName = find('sura_name','surah_name');
+  var kSuraNum  = find('sura_num','sura','surah');
+  var kPos      = find('ayah_pos_sura','ayah_pos','pos');
+  var kBefore   = find('5before','5 before','before');
+  var kAfter    = find('5after','5 after','after');
+  if (!kRoot) { setStatus('لم يتم العثور على عمود root'); return; }
+
+  allData = [];
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var root = String(r[kRoot]||'').trim();
+    if (!root) continue;
+    allData.push({
+      root:      root,
+      word:      String(r[kWord]    ||'').trim(),
+      word_uth:  String(r[kWordUth] ||'').trim(),
+      word_norm: String(r[kWordNorm]||'').trim(),
+      ayah_text: String(r[kAyah]    ||'').trim(),
+      sura_name: String(r[kSuraName]||'').trim(),
+      sura_num:  String(r[kSuraNum] ||'').trim(),
+      pos:       String(r[kPos]     ||'').trim(),
+      before:    String(r[kBefore]  ||'').trim(),
+      after:     String(r[kAfter]   ||'').trim()
+    });
+  }
+  buildMaps();
+  showUI();
+}
+
+function buildMaps() {
+  rootsMap = {}; wordsMap = {};
+  for (var i = 0; i < allData.length; i++) {
+    var r = allData[i];
+    if (!rootsMap[r.root]) rootsMap[r.root] = [];
+    rootsMap[r.root].push(r);
+    if (r.word) {
+      if (!wordsMap[r.word]) wordsMap[r.word] = [];
+      var dup = false;
+      for (var j = 0; j < wordsMap[r.word].length; j++) {
+        if (wordsMap[r.word][j].pos === r.pos && wordsMap[r.word][j].sura_num === r.sura_num) { dup = true; break; }
+      }
+      if (!dup) wordsMap[r.word].push(r);
+    }
+  }
+}
+
+function showUI() {
+  var rc = Object.keys(rootsMap).length;
+  var wc = Object.keys(wordsMap).length;
+  document.getElementById('searchContainer').style.display = 'block';
+  document.getElementById('statsBar').style.display = 'block';
+  document.getElementById('statsBar').textContent = 'السجلات: ' + allData.length + ' | الجذور: ' + rc + ' | الكلمات: ' + wc;
+  document.getElementById('uploadSection').style.background = '#f0faf5';
+  showChips(Object.keys(rootsMap).sort(), 'root');
+}
+
+function clearSaved() {
+  if (!confirm('هل تريد حذف البيانات المحفوظة؟')) return;
+  dbDel('allData').then(function() {
+    allData = []; rootsMap = {}; wordsMap = {};
+    document.getElementById('savedBadge').style.display = 'none';
+    document.getElementById('btnClear').style.display = 'none';
+    document.getElementById('searchContainer').style.display = 'none';
+    document.getElementById('statsBar').style.display = 'none';
+    document.getElementById('chipsArea').innerHTML = '';
+    document.getElementById('resultsArea').innerHTML = '';
+    document.getElementById('uploadSection').style.background = '#fff8f0';
+    setStatus('تم الحذف — ارفع الملف مجدداً');
+  });
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  var inp = document.getElementById('searchInput');
+  document.getElementById('tabRoot').classList.toggle('active', tab === 'root');
+  document.getElementById('tabWord').classList.toggle('active', tab === 'word');
+  inp.placeholder = tab === 'root' ? 'ابحث عن جذر... (مثال: ءبد، كتب، علم)' : 'اكتب الكلمة ثم اضغط Enter...';
+  inp.value = '';
+  showChips(tab === 'root' ? Object.keys(rootsMap).sort() : Object.keys(wordsMap).sort(), tab);
+  document.getElementById('resultsArea').innerHTML = '';
+}
+
+function debounceSearch() {
+  clearTimeout(searchTimer);
+  if (currentTab === 'root') searchTimer = setTimeout(handleSearch, 300);
+}
+
+function handleSearch() {
+  var q = document.getElementById('searchInput').value.trim();
+  if (currentTab === 'root') {
+    var list = Object.keys(rootsMap).filter(function(k) { return k.indexOf(q) >= 0; }).sort();
+    showChips(list, 'root');
+    if (!q) { document.getElementById('resultsArea').innerHTML = ''; return; }
+    if (list.length === 1) selectItem(list[0], 'root');
+    else document.getElementById('resultsArea').innerHTML = '';
+  } else {
+    if (!q) { showChips(Object.keys(wordsMap).sort(), 'word'); document.getElementById('resultsArea').innerHTML = ''; return; }
+    var seen = {};
+    var matched = [];
+    for (var i = 0; i < allData.length; i++) {
+      var r = allData[i];
+      var inUth  = r.word_uth  && r.word_uth.indexOf(q)  >= 0;
+      var inNorm = r.word_norm && r.word_norm.indexOf(q) >= 0;
+      var inMain = r.word      && r.word.indexOf(q)      >= 0;
+      if (!inUth && !inNorm && !inMain) continue;
+      var key = r.sura_num + '_' + r.pos + '_' + r.root;
+      if (seen[key]) continue;
+      seen[key] = true;
+      matched.push(r);
+    }
+    matched.sort(function(a,b) { return (+a.sura_num - +b.sura_num) || (+a.pos - +b.pos); });
+    var formCount = {};
+    for (var i = 0; i < matched.length; i++) {
+      if (matched[i].word) formCount[matched[i].word] = (formCount[matched[i].word]||0) + 1;
+    }
+    var formEntries = Object.keys(formCount).map(function(w) { return [w, formCount[w]]; });
+    formEntries.sort(function(a,b) { return b[1]-a[1]; });
+    var formsHtml = formEntries.slice(0,12).map(function(e) { return e[0] + ' (' + e[1] + ')'; }).join(' | ');
+    document.getElementById('chipsArea').innerHTML = formEntries.map(function(e) {
+      return '<span class="chip word-chip active">' + e[0] + '</span>';
+    }).join('');
+    renderWordSearchResults(q, matched, formsHtml);
+  }
+}
+
+function showChips(list, type) {
+  var isWord = type === 'word';
+  var map = isWord ? wordsMap : rootsMap;
+  var html = '';
+  var max = list.length < 120 ? list.length : 120;
+  for (var i = 0; i < max; i++) {
+    var v = list[i];
+    var safe = v.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    html += '<span class="chip ' + (isWord ? 'word-chip' : '') + '" onclick="selectItem(\'' + safe + '\',\'' + type + '\')">' + v + ' <small style="opacity:.6">(' + (map[v]||[]).length + ')</small></span>';
+  }
+  document.getElementById('chipsArea').innerHTML = html;
+}
+
+function selectItem(val, type) {
+  var chips = document.querySelectorAll('.chip');
+  for (var i = 0; i < chips.length; i++) {
+    chips[i].classList.toggle('active', chips[i].textContent.trim().indexOf(val) === 0);
+  }
+  if (type === 'root') renderRootResults(val);
+  else renderWordResults(val);
+}
+
+function renderRootResults(root) {
+  var entries = rootsMap[root];
+  if (!entries) return;
+  var sorted = entries.slice().sort(function(a,b) { return (+a.sura_num - +b.sura_num) || (+a.pos - +b.pos); });
+  var wordSet = {};
+  for (var i = 0; i < sorted.length; i++) { if (sorted[i].word) wordSet[sorted[i].word] = 1; }
+  var words = Object.keys(wordSet).join(' | ');
+  var html = '<div class="root-header"><div class="root-title">' + root + '</div><div>' +
+    '<div style="color:#8b4513;font-size:1.1rem">' + sorted.length + ' مواضع في القرآن الكريم</div>' +
+    '<div class="root-meta">الكلمات: ' + words + '</div></div></div>';
+  for (var i = 0; i < sorted.length; i++) html += entryCard(sorted[i]);
+  document.getElementById('resultsArea').innerHTML = html;
+}
+
+function renderWordResults(word) {
+  var entries = wordsMap[word];
+  if (!entries || !entries.length) { document.getElementById('resultsArea').innerHTML = '<div class="no-results">لم يتم العثور على نتائج</div>'; return; }
+  var formCount = {};
+  for (var i = 0; i < entries.length; i++) { if (entries[i].word) formCount[entries[i].word] = (formCount[entries[i].word]||0)+1; }
+  var formEntries = Object.keys(formCount).map(function(w){return [w,formCount[w]];}).sort(function(a,b){return b[1]-a[1];});
+  var formsHtml = formEntries.slice(0,12).map(function(e){return e[0]+' ('+e[1]+')';}).join(' | ');
+  renderWordSearchResults(word, entries, formsHtml);
+}
+
+function renderWordSearchResults(q, entries, formsHtml) {
+  if (!entries.length) { document.getElementById('resultsArea').innerHTML = '<div class="no-results">لم يتم العثور على نتائج: ' + q + '</div>'; return; }
+  var rootSet = {};
+  for (var i = 0; i < entries.length; i++) { if (entries[i].root) rootSet[entries[i].root] = 1; }
+  var roots = Object.keys(rootSet).join(' | ');
+  var html = '<div class="root-header" style="border-color:#2a7a55">' +
+    '<div class="root-title" style="color:#2a7a55">' + q + '</div><div>' +
+    '<div style="color:#2a7a55;font-size:1.1rem">' + entries.length + ' مواضع في القرآن الكريم</div>' +
+    '<div class="root-meta">الأشكال: ' + formsHtml + '</div>' +
+    '<div class="root-meta">الجذور: ' + roots + '</div></div></div>';
+  for (var i = 0; i < entries.length; i++) html += entryCard(entries[i]);
+  document.getElementById('resultsArea').innerHTML = html;
+}
+
+function contextBlock(label, text) {
+  if (!text) return '';
+  var id = 'ctx' + (++ctxId);
+  return '<div class="context-toggle" onclick="toggleCtx(\'' + id + '\',this)"><span id="arr' + id + '">&#9664;</span> ' + label + '</div>' +
+    '<div class="context-body" id="' + id + '">' + text + '</div>';
+}
+
+function toggleCtx(id, btn) {
+  var el = document.getElementById(id);
+  var arr = document.getElementById('arr' + id);
+  var open = el.style.display === 'block';
+  el.style.display = open ? 'none' : 'block';
+  arr.style.transform = open ? '' : 'rotate(-90deg)';
+  arr.style.display = 'inline-block';
+  arr.style.transition = 'transform 0.2s';
+}
+
+function entryCard(e) {
+  return '<div class="entry-card">' +
+    '<div class="entry-header">' +
+      '<span class="entry-word">' + e.word + '</span>' +
+      (e.root ? '<span class="badge green">جذر: ' + e.root + '</span>' : '') +
+      '<span class="badge">سورة ' + e.sura_name + '</span>' +
+      '<span class="badge">آية ' + e.pos + '</span>' +
+      (e.sura_num ? '<span class="badge">س ' + e.sura_num + '</span>' : '') +
+    '</div>' +
+    '<div class="ayah-section">' +
+      '<div class="context-label">الآية الكريمة:</div>' +
+      '<div class="ayah-text">' + highlight(e.ayah_text, e.word) + '</div>' +
+      contextBlock('خمس آيات قبلها', e.before) +
+      contextBlock('خمس آيات بعدها', e.after) +
+    '</div></div>';
+}
+
+function stripDiacritics(s) {
+  var result = '';
+  for (var i = 0; i < s.length; i++) {
+    var code = s.charCodeAt(i);
+    var keep = true;
+    if (code >= 0x0610 && code <= 0x061A) keep = false;
+    else if (code >= 0x064B && code <= 0x065F) keep = false;
+    else if (code === 0x0670) keep = false;
+    else if (code >= 0x06D6 && code <= 0x06DC) keep = false;
+    else if (code >= 0x06DF && code <= 0x06E4) keep = false;
+    else if (code === 0x06E7 || code === 0x06E8) keep = false;
+    else if (code >= 0x06EA && code <= 0x06ED) keep = false;
+    if (keep) result += s[i];
+  }
+  return result;
+}
+
+function highlight(text, word) {
+  if (!word || !text) return text || '';
+  var cleanWord = stripDiacritics(word);
+  var parts = text.split(' ');
+  var found = false;
+  for (var i = 0; i < parts.length; i++) {
+    if (!found && stripDiacritics(parts[i]) === cleanWord) {
+      parts[i] = '<span style="color:#cc0000;font-weight:bold;">' + parts[i] + '</span>';
+      found = true;
+    }
+  }
+  if (!found) {
+    for (var i = 0; i < parts.length; i++) {
+      if (!found && stripDiacritics(parts[i]).indexOf(cleanWord) >= 0) {
+        parts[i] = '<span style="color:#cc0000;font-weight:bold;">' + parts[i] + '</span>';
+        found = true;
+      }
+    }
+  }
+  return parts.join(' ');
+}
+
+function showLoading(txt, sub) {
+  document.getElementById('loadingText').textContent = txt || 'جاري التحميل...';
+  document.getElementById('loadingSub').textContent = sub || '';
+  document.getElementById('loadingOverlay').style.display = 'flex';
+}
+function hideLoading() { document.getElementById('loadingOverlay').style.display = 'none'; }
+function setStatus(msg) { document.getElementById('uploadStatus').textContent = msg; }
+function splitCSV(line, d) {
+  if (d === '\t') return line.split('\t');
+  var r = [], c = '', q = false;
+  for (var i = 0; i < line.length; i++) {
+    var ch = line[i];
+    if (ch === '"') q = !q;
+    else if (ch === d && !q) { r.push(c); c = ''; }
+    else c += ch;
+  }
+  r.push(c);
+  return r;
+}
+</script>
+</body>
+</html>
