@@ -81,7 +81,7 @@
     <button class="tab-btn" id="tabWord" onclick="switchTab('word')">بحث بالكلمة</button>
   </div>
   <div class="search-bar">
-    <input type="text" id="searchInput" placeholder="ابحث عن جذر... (مثال: ءبد، كتب، علم)"
+    <input type="text" id="searchInput" placeholder="ابحث عن جذر... (مثال: ءجج، اجج، كتب، علم)"
       oninput="debounceSearch()"
       onkeydown="if(event.key==='Enter'){clearTimeout(searchTimer);handleSearch();}">
   </div>
@@ -299,7 +299,7 @@ function switchTab(tab) {
   var inp = document.getElementById('searchInput');
   document.getElementById('tabRoot').classList.toggle('active', tab === 'root');
   document.getElementById('tabWord').classList.toggle('active', tab === 'word');
-  inp.placeholder = tab === 'root' ? 'ابحث عن جذر... (مثال: ءبد، كتب، علم)' : 'اكتب الكلمة ثم اضغط Enter...';
+  inp.placeholder = tab === 'root' ? 'ابحث عن جذر... (مثال: ءجج، اجج، كتب، علم)' : 'اكتب الكلمة ثم اضغط Enter...';
   inp.value = '';
   showChips(tab === 'root' ? Object.keys(rootsMap).sort() : Object.keys(wordsMap).sort(), tab);
   document.getElementById('resultsArea').innerHTML = '';
@@ -310,13 +310,45 @@ function debounceSearch() {
   if (currentTab === 'root') searchTimer = setTimeout(handleSearch, 300);
 }
 
+/* =============================================
+   دالة توحيد موحّدة للبحث:
+   تحوّل كل أشكال الهمزة والألف (ء أ إ آ ٱ ا ؤ ئ)
+   إلى حرف واحد (ا) حتى يتطابق البحث بأي شكل
+   ============================================= */
+function normalizeForSearch(s) {
+  var result = '';
+  for (var i = 0; i < s.length; i++) {
+    var code = s.charCodeAt(i);
+    // كل أشكال الهمزة والألف تصبح ا (0x0627)
+    if (code === 0x0621 || // ء همزة مفردة
+        code === 0x0623 || // أ ألف فوقها همزة
+        code === 0x0625 || // إ ألف تحتها همزة
+        code === 0x0622 || // آ ألف ممدودة
+        code === 0x0671) { // ٱ ألف وصل
+      result += '\u0627'; // ا
+    } else {
+      result += s[i];
+    }
+  }
+  return result;
+}
+
 function handleSearch() {
   var q = document.getElementById('searchInput').value.trim();
+  var qNorm = normalizeForSearch(q);
   if (currentTab === 'root') {
-    var list = Object.keys(rootsMap).filter(function(k) { return k.indexOf(q) >= 0; }).sort();
+    var list = Object.keys(rootsMap).filter(function(k) {
+      return normalizeForSearch(k).indexOf(qNorm) >= 0;
+    }).sort();
     showChips(list, 'root');
     if (!q) { document.getElementById('resultsArea').innerHTML = ''; return; }
     if (list.length === 1) selectItem(list[0], 'root');
+    else if (list.length > 1) {
+      // إذا فيه تطابق تام (بعد التوحيد) نعرضه مباشرة
+      var exact = list.find(function(k) { return normalizeForSearch(k) === qNorm; });
+      if (exact) selectItem(exact, 'root');
+      else document.getElementById('resultsArea').innerHTML = '';
+    }
     else document.getElementById('resultsArea').innerHTML = '';
   } else {
     if (!q) { showChips(Object.keys(wordsMap).sort(), 'word'); document.getElementById('resultsArea').innerHTML = ''; return; }
@@ -324,9 +356,9 @@ function handleSearch() {
     var matched = [];
     for (var i = 0; i < allData.length; i++) {
       var r = allData[i];
-      var inUth  = r.word_uth  && r.word_uth.indexOf(q)  >= 0;
-      var inNorm = r.word_norm && r.word_norm.indexOf(q) >= 0;
-      var inMain = r.word      && r.word.indexOf(q)      >= 0;
+      var inUth  = r.word_uth  && normalizeHamza(normalizeAlef(r.word_uth)).indexOf(normalizeHamza(normalizeAlef(q)))  >= 0;
+      var inNorm = r.word_norm && normalizeHamza(normalizeAlef(r.word_norm)).indexOf(normalizeHamza(normalizeAlef(q))) >= 0;
+      var inMain = r.word      && normalizeHamza(normalizeAlef(r.word)).indexOf(normalizeHamza(normalizeAlef(q)))      >= 0;
       if (!inUth && !inNorm && !inMain) continue;
       var key = r.sura_num + '_' + r.pos + '_' + r.root;
       if (seen[key]) continue;
@@ -380,7 +412,7 @@ function renderRootResults(root) {
   var html = '<div class="root-header"><div class="root-title">' + root + '</div><div>' +
     '<div style="color:#8b4513;font-size:1.1rem">' + sorted.length + ' مواضع في القرآن الكريم</div>' +
     '<div class="root-meta">الكلمات: ' + words + '</div></div></div>';
-  for (var i = 0; i < sorted.length; i++) html += entryCard(sorted[i]);
+  for (var i = 0; i < sorted.length; i++) html += entryCard(sorted[i], i + 1);
   document.getElementById('resultsArea').innerHTML = html;
 }
 
@@ -404,7 +436,7 @@ function renderWordSearchResults(q, entries, formsHtml) {
     '<div style="color:#2a7a55;font-size:1.1rem">' + entries.length + ' مواضع في القرآن الكريم</div>' +
     '<div class="root-meta">الأشكال: ' + formsHtml + '</div>' +
     '<div class="root-meta">الجذور: ' + roots + '</div></div></div>';
-  for (var i = 0; i < entries.length; i++) html += entryCard(entries[i]);
+  for (var i = 0; i < entries.length; i++) html += entryCard(entries[i], i + 1);
   document.getElementById('resultsArea').innerHTML = html;
 }
 
@@ -425,9 +457,10 @@ function toggleCtx(id, btn) {
   arr.style.transition = 'transform 0.2s';
 }
 
-function entryCard(e) {
+function entryCard(e, num) {
   return '<div class="entry-card">' +
     '<div class="entry-header">' +
+      '<span style="color:#aaa;font-size:0.9rem;min-width:24px;">' + num + '</span>' +
       '<span class="entry-word">' + e.word + '</span>' +
       (e.root ? '<span class="badge green">جذر: ' + e.root + '</span>' : '') +
       '<span class="badge">سورة ' + e.sura_name + '</span>' +
@@ -446,36 +479,69 @@ function stripDiacritics(s) {
   var result = '';
   for (var i = 0; i < s.length; i++) {
     var code = s.charCodeAt(i);
-    var keep = true;
-    if (code >= 0x0610 && code <= 0x061A) keep = false;
-    else if (code >= 0x064B && code <= 0x065F) keep = false;
-    else if (code === 0x0670) keep = false;
-    else if (code >= 0x06D6 && code <= 0x06DC) keep = false;
-    else if (code >= 0x06DF && code <= 0x06E4) keep = false;
-    else if (code === 0x06E7 || code === 0x06E8) keep = false;
-    else if (code >= 0x06EA && code <= 0x06ED) keep = false;
-    if (keep) result += s[i];
+    var skip = false;
+    if (code >= 0x0610 && code <= 0x061A) skip = true;
+    else if (code >= 0x064B && code <= 0x065F) skip = true;
+    else if (code === 0x0670) skip = true;
+    else if (code >= 0x06D6 && code <= 0x06DC) skip = true;
+    else if (code >= 0x06DF && code <= 0x06E4) skip = true;
+    else if (code === 0x06E7 || code === 0x06E8) skip = true;
+    else if (code >= 0x06EA && code <= 0x06ED) skip = true;
+    else if (code === 0x0671) result += String.fromCharCode(0x0627);
+    else if (code === 0x06CC) result += String.fromCharCode(0x064A);
+    else if (code === 0x06A9) result += String.fromCharCode(0x0643);
+    else if (code === 0x06C1) result += String.fromCharCode(0x0647);
+    else if (code === 0x0640) skip = true;
+    else if (code >= 0xFE70 && code <= 0xFEFF) skip = true;
+    else if (code === 0x200C || code === 0x200D || code === 0x200F) skip = true;
+    else if (code === 0x06DF || code === 0x06E0) skip = true;
+    else if (code === 0x0615 || code === 0x0616) skip = true;
+    if (!skip) result += s[i];
+  }
+  return result;
+}
+
+function normalizeHamza(s) {
+  var result = '';
+  for (var i = 0; i < s.length; i++) {
+    var code = s.charCodeAt(i);
+    if (code === 0x0623 || code === 0x0625 || code === 0x0624 || code === 0x0626 || code === 0x0622 || code === 0x0671) {
+      result += '\u0621';
+    } else {
+      result += s[i];
+    }
+  }
+  return result;
+}
+
+function normalizeAlef(s) {
+  var result = '';
+  for (var i = 0; i < s.length; i++) {
+    var code = s.charCodeAt(i);
+    if (code === 0x0671 || code === 0x0623 || code === 0x0625 || code === 0x0622) {
+      result += '\u0627';
+    } else {
+      result += s[i];
+    }
   }
   return result;
 }
 
 function highlight(text, word) {
   if (!word || !text) return text || '';
-  var cleanWord = stripDiacritics(word);
+  var idx = text.indexOf(word);
+  if (idx >= 0) {
+    return text.substring(0, idx) +
+      '<span style="color:#cc0000;font-weight:bold;">' + word + '</span>' +
+      text.substring(idx + word.length);
+  }
+  var cleanWord = stripDiacritics(normalizeAlef(word));
   var parts = text.split(' ');
   var found = false;
   for (var i = 0; i < parts.length; i++) {
-    if (!found && stripDiacritics(parts[i]) === cleanWord) {
+    if (!found && stripDiacritics(normalizeAlef(parts[i])).indexOf(cleanWord) >= 0) {
       parts[i] = '<span style="color:#cc0000;font-weight:bold;">' + parts[i] + '</span>';
       found = true;
-    }
-  }
-  if (!found) {
-    for (var i = 0; i < parts.length; i++) {
-      if (!found && stripDiacritics(parts[i]).indexOf(cleanWord) >= 0) {
-        parts[i] = '<span style="color:#cc0000;font-weight:bold;">' + parts[i] + '</span>';
-        found = true;
-      }
     }
   }
   return parts.join(' ');
